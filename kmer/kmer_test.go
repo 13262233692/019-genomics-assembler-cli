@@ -55,6 +55,41 @@ func TestHash(t *testing.T) {
 	}
 }
 
+func TestHash2(t *testing.T) {
+	h1 := Hash2("ACGT")
+	h2 := Hash2("ACGT")
+	h3 := Hash2("TGCA")
+	if h1 != h2 {
+		t.Error("Same kmer should have same Hash2")
+	}
+	if h1 == h3 {
+		t.Error("Different kmers should have different Hash2")
+	}
+}
+
+func TestHashDistinctFromHash2(t *testing.T) {
+	h1 := Hash("ACGTACGTAGCTAGCT")
+	h2 := Hash2("ACGTACGTAGCTAGCT")
+	if h1 == h2 {
+		t.Log("Warning: Hash and Hash2 produced same value (unlikely but possible)")
+	}
+}
+
+func TestDoubleHash(t *testing.T) {
+	dh1 := HashDouble("AAAAAAAAAAAAAAA")
+	dh2 := HashDouble("AAAAAAAAAAAAAAA")
+	dh3 := HashDouble("TTTTTTTTTTTTTTT")
+	if !dh1.Equals(dh2) {
+		t.Error("Same kmer should have equal DoubleHash")
+	}
+	if dh1.Equals(dh3) {
+		t.Error("Different kmers should have different DoubleHash")
+	}
+	if dh1.H1 == dh3.H1 && dh1.H2 == dh3.H2 {
+		t.Error("Different kmers produced double-hash collision")
+	}
+}
+
 func TestReverseComplement(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -83,5 +118,31 @@ func TestCanonical(t *testing.T) {
 	}
 	if c1 != "ATCG" {
 		t.Errorf("Expected canonical form 'ATCG', got '%s'", c1)
+	}
+}
+
+func TestEncodeDecodeKmer(t *testing.T) {
+	tests := []string{"ACGT", "AAAAAAAA", "GCGCGCGC", "ATATATAT", "ACGTACGT"}
+	for _, seq := range tests {
+		if len(seq) > 32 {
+			continue
+		}
+		encoded := EncodeKmer(seq)
+		decoded := DecodeKmer(encoded, len(seq))
+		if decoded != seq {
+			t.Errorf("Encode/Decode roundtrip failed: %s -> %d -> %s", seq, encoded, decoded)
+		}
+	}
+}
+
+func TestEncodeKmerDistinct(t *testing.T) {
+	seen := make(map[uint64]string)
+	kmers := []string{"AAAA", "AAAC", "AAAG", "AAAT", "CAAA", "GAAA", "TAAA", "ACGT"}
+	for _, k := range kmers {
+		v := EncodeKmer(k)
+		if prev, exists := seen[v]; exists {
+			t.Errorf("Collision: %s and %s both encode to %d", prev, k, v)
+		}
+		seen[v] = k
 	}
 }
